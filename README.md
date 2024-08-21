@@ -65,7 +65,7 @@ Libraries and environment setup using the <a href="https://pipenv.pypa.io/en/lat
 
 Clone repository
   ```sh
-  git clone git@github.com:dkermany/spacer3d.git
+  git clone git@github.com:Translational-Biophotonics-Laboratory/mdspacer.git
   ```
 
 Install library (virtualenv recommended)
