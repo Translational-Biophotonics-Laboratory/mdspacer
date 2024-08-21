@@ -11,7 +11,7 @@
 <!-- PROJECT LOGO -->
 <div align="center">
 
-  <h3 align="center">SPACER-3D</h3>
+  <h3 align="center">MDSPACER</h3>
 
   <p align="center">
     <u>S</u>patial <u>P</u>attern <u>A</u>nalysis with <u>C</u>omparable and <u>E</u>xtendable <u>R</u>ipley’s K 
@@ -116,7 +116,7 @@ Install dependencies
   n_samples = 5
   ```
 
-  Run SPACER-3D K Function
+  Run MDSPACER K Function
   ```python
     rand_rstats = monte_carlo(points, mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
     results = run_ripley(points, points, mask, radii, n_processes=55, boundary_correction=False)
