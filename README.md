@@ -1,4 +1,4 @@
-<!-- ![Alt text](/Bone_Vessel_Segmentation_Diagram.png?raw=true)-->
+  <!-- ![Alt text](/Bone_Vessel_Segmentation_Diagram.png?raw=true)-->
 <div id="top"></div>
 <!-- PROJECT SHIELDS -->
 <!--
@@ -86,7 +86,11 @@ Install dependencies
 
   Import
   ```python
-  from spacer3d.Ripley import CrossRipley, run_ripley 
+  from spacer3d.Ripley import CrossRipley, run_ripley, monte_carlo
+  from spacer3d.utils import plot_ripley
+  import scipy.stats as stats
+  import numpy as np
+  import pandas as pd
   ```
 
   Load points [(N, 3) shape for 3D, (N, 2) for 2D]
@@ -120,31 +124,71 @@ Install dependencies
 
   Run MDSPACER K Function - Univariate
   ```python
-    rand_rstats = monte_carlo(random_set1, volume_mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
+    # Univariate analyzes clustering within a single point cloud
+    rand_rstats = monte_carlo(
+        points_i=random_set1, # Numpy array containing 2D or 3D point locations
+        mask=volume_mask, # binary mask of where to conduct the calculation
+        radii=radii, # Set the range of search radii over which to calculate K values
+        mode="3D", # Must match the shape of numpy arrays points_i
+        n_samples=100, # Number of Monte Carlo simulations to perform
+        n_processes=55, # Number of CPU cores over which you want to parallelize computation
+        boundary_correction=False # Whether to apply boundary correction algorithm, must set 
+                                  # False if using MDSpacer normalization. Adds excess processing
+    )
+    # Parameters should match those used for monte carlo
     results = run_ripley(
-        points_i=random_set1, // Numpy array containing 2D or 3D point locations
-        mode="3D", // must match the shape of numpy arrays points_i
-        mask=volume_mask, // binary mask of where to conduct the calculation
-        radii=radii, // Set the range of search radii over which to calculate K values
-        n_processes=55, // Use this to set the number of CPU cores you want to run in parallel
+        points_i=random_set1, 
+        points_j=random_set1, # for univariate, points_j == points_i
+        mask=volume_mask,
+        radii=radii,
+        n_processes=55,
         boundary_correction=False
     )
-    rstats = pd.DataFrame(results, columns=["Radius (r)", "K(r)", "L(r)", "H(r)"])
+
+    plot_ripley(
+        rstats, # Data Ripley output
+        rand_df=rand_rstats, # Monte Carlo Ripley output
+        mode="3D",
+        norm=True, # Apply MDSpacer normalization
+        save=False, # Save to file
+        output_folder="./ripley_plots", # Output file directory
+        output_filename="ripley_figure.svg" # Output file name
+    )
   ```
 
   Run MDSPACER K Function - Bivariate
   ```python
-    rand_rstats = monte_carlo(random_set1, random_set2, volume_mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
+    # Bivarate analyzes clustering between two point clouds
+    rand_rstats = monte_carlo(
+        points_i=random_set1,
+        points_j=random_set2, # Include second point cloud
+        mask=volume_mask,
+        radii=radii,
+        mode="3D",
+        n_samples=100,
+        n_processes=55,
+        boundary_correction=False
+    )
+    # Parameters should match those used for monte carlo
     results = run_ripley(
-        points_i=random_set1, // Numpy array containing 2D or 3D point locations
-        points_j=random_set2, // Set only if you are doing multivariate, must match the shape of points_i
-        mode="3D", // must match the shape of numpy arrays points_i and points_j
-        mask=volume_mask, // binary mask of where to conduct the calculation
-        radii=radii, // Set the range of search radii over which to calculate K values
-        n_processes=55, // Use this to set the number of CPU cores you want to run in parallel
+        points_i=random_set1, 
+        points_j=random_set2, # for bivariate, use second point cloud for points_j
+        mask=volume_mask,
+        radii=radii,
+        n_processes=55,
         boundary_correction=False
     )
     rstats = pd.DataFrame(results, columns=["Radius (r)", "K(r)", "L(r)", "H(r)"])
+
+    plot_ripley(
+        rstats, # Data Ripley output
+        rand_df=rand_rstats, # Monte Carlo Ripley output
+        mode="3D",
+        norm=True, # Apply MDSpacer normalization
+        save=False, # Save to file
+        output_folder="./ripley_plots", # Output file directory
+        output_filename="ripley_figure.svg" # Output file name
+    )
   ```
 
   Save rstats DataFrames to CSV files for caching and plotting
