@@ -120,7 +120,6 @@ Install dependencies
   Run MDSPACER K Function - Univariate
   ```python
     rand_rstats = monte_carlo(random_set1, volume_mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
-    results = run_ripley(random_set 1, random_set1, volume_mask, radii, n_processes=55, boundary_correction=False)
     results = run_ripley(
         points_i=random_set1, // Numpy array containing 2D or 3D point locations
         mode="3D", // must match the shape of numpy arrays points_i
