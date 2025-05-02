@@ -108,7 +108,7 @@ Install dependencies
   ```python
   #### 3D dummy data
   # Search radii
-  radii=np.arange(2, 67) 
+  radii = np.arange(2, 67) 
 
   # Binary mask to define sample space
   volume_mask = np.ones((100, 100, 100))
