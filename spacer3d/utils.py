@@ -9,6 +9,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
+from collections import defaultdict
 
 def calculate_pi(data, p=0.95):
     """
@@ -340,10 +341,6 @@ def _config_legend(patches, fontsize=None, ax=None):
         # Configure the legend for the current axes
         plt.legend(handles=line_handles+patches, labels=line_labels+patch_labels, loc="upper left", fontsize=fontsize)
 
-# Example usage
-fig, ax = plt.subplots()
-
-# def single_plot_process(df, save=False, output_folder="./ripley_plots"):
 
 def plot_ripley(df, rand_df=None, mode="3D", norm=False, save=False, output_folder="./ripley_plots", output_filename="ripley_figure.svg"):
     if norm and rand_df is None:
@@ -618,14 +615,14 @@ def _draw_combined_graph(df, title=None, legend=None, var_name=None, force_ylim=
     print("average line", average_line.get_label())
     if legend:
         handles, labels = ax.get_legend_handles_labels()
-        hue_handles = [average_line] + handles[1:4]
-        hue_labels = ["Average"] + [f"{var_name} {i}" for i in range(1, 4)]
-        ax.legend(hue_handles, hue_labels, prop={'size': 14})  # Set the font size to 10
+        hue_handles = [average_line] + handles[1:]
+        hue_labels = ["Average"] + [f"{var_name} {i}" for i in range(1, len(handles))]
+        ax.legend(hue_handles, hue_labels, prop={'size': 12}, loc="upper left", bbox_to_anchor=(1.0, 1.0))  # Set the font size to 10
         # plt.legend(prop={'size': 14})  # Set the font size to 10
 
     if save:
         create_directory(output_folder)
-        plt.savefig(os.path.join(output_folder, output_filename))
+        plt.savefig(os.path.join(output_folder, output_filename), bbox_inches="tight")
         print(output_folder, output_filename)
 
 def plot_combined_univariate(rstats_path):
@@ -745,7 +742,6 @@ def plot_combined_platelets(rstats_path):
         main_rstats_files = [os.path.splitext(os.path.basename(f))[0] for f in rstats_files if "random" not in f]
         rand_rstats_files = [os.path.splitext(os.path.basename(f))[0] for f in rstats_files if "random" in f]
         assert len(main_rstats_files) == len(rand_rstats_files)
-        print(main_rstats_files)
         paired_files = list(zip(main_rstats_files, rand_rstats_files))
 
         ids = sorted(list(set([get_id_from_name(f) for f in main_rstats_files])))
@@ -759,10 +755,12 @@ def plot_combined_platelets(rstats_path):
         # After average rstats values are calculated for each mice, the average
         # is migrated to the all_mice_averages_df dataframe
         all_mice_averages_df = pd.DataFrame()
+        sample_counts = defaultdict(int)
 
         df = pd.DataFrame()
         for i, pair in enumerate(paired_files):
             filename, rand_filename = pair
+            s_id = get_id_from_name(filename)
 
             # Construct the path for the CSV file
             fullpath = os.path.join(t_rstats_path, f"{filename}.csv")
@@ -783,15 +781,17 @@ def plot_combined_platelets(rstats_path):
             # Perform MDSpacer normalization to normalize 95% interval to
             # between -1 and 1 with other values adjusted proportionately
             K_norm = normalize(rstats, rand_rstats)
-
-            individual_mouse_segments[get_id_from_name(filename)][f"Sample {i+1}"] = pd.Series(K_norm)
             
-            df[f"Sample {i+1}"] = pd.Series(K_norm)
-            sample_map[f"Sample {i+1}"] = int(id_map[get_id_from_name(filename)])
+            sample_counts[s_id] += 1
+            individual_mouse_segments[s_id][f"Sample {sample_counts[s_id]}"] = pd.Series(K_norm)
+            
+            # df[f"Sample {i+1}"] = pd.Series(K_norm)
+            # sample_map[f"Sample {i+1}"] = int(id_map[get_id_from_name(filename)])
 
 
         for i, (mouse_id, mouse_df) in enumerate(individual_mouse_segments.items()):
             all_mice_averages_df[f"Mouse {i+1}"] = mouse_df.iloc[:, 1:].mean(axis=1)
+            mouse_df["Average"] = mouse_df.iloc[:, 1:].mean(axis=1)
             
         all_mice_averages = all_mice_averages_df.drop('Radius (r)', axis=1)
         all_mice_averages_df["Average"] = all_mice_averages.mean(axis=1)
@@ -799,24 +799,31 @@ def plot_combined_platelets(rstats_path):
                           value_vars=["Average"]+[f"Mouse {i+1}" for i in range(len(ids))],
                           var_name="Mouse", value_name="K_norm")
 
-        # df_long = pd.melt(df, id_vars=["Radius (r)"],
-        #                   value_vars=["Average"]+[f"Sample {i+1}" for i in range(len(paired_files))],
-        #                   var_name="Sample", value_name="K_norm")
-        # df_long["Mouse ID"] = df_long["Sample"].map(sample_map)
-        palette = sns.color_palette("hls", len(ids))
-        print("df_long", df_long)
-        _draw_combined_graph(df_long, title=t, var_name="Mouse", force_ylim=(-24, 300),
-                             palette=palette, legend=True, save=False,
+        palette = sns.color_palette("hls", len(ids)+1)
+        _draw_combined_graph(df_long, title=t, var_name="Mouse", force_ylim=(-24, 140),
+                             palette=palette, legend=False, save=False,
                              output_filename=f"ripley_combined_plot_{t}.svg")
+
+        for mouse_id, mouse_df in individual_mouse_segments.items():
+            palette = sns.color_palette("hls", sample_counts[mouse_id]+1)
+            mouse_df_long = pd.melt(mouse_df, id_vars=["Radius (r)"],
+                                    value_vars=["Average"]+[f"Sample {i+1}" for i in range(sample_counts[mouse_id])],
+                                    var_name="Sample", value_name="K_norm")
+            _draw_combined_graph(mouse_df_long, title=t, var_name="Sample", force_ylim=(-24, 180),
+                                 palette=palette, legend=False, save=True,
+                                 output_filename=f"ripley_individual_plot_{mouse_id}_{t}.svg")
+
 
         mouse_columns = [col for col in all_mice_averages_df.columns if col.startswith("Mouse")]
         columns_to_select = ["Radius (r)"] + mouse_columns
 
         ttest_data[t] = all_mice_averages_df[columns_to_select]
 
-    print("ttest_data", ttest_data)
     ttest_results = run_ttest(ttest_data["control"], ttest_data["plerixafor"])
-    print("ttest_results", ttest_results)
+    significant_radii = [(r, p) for r, p in ttest_results if p <= 0.05]
+    v_significant_radii = [(r, p) for r, p in ttest_results if p <= 0.01]
+    print(significant_radii)
+    print(v_significant_radii)
 
 def run_ttest(group1_df, group2_df):
     p_values = []
@@ -824,10 +831,9 @@ def run_ttest(group1_df, group2_df):
         mouse_columns = [col for col in g1.columns if col.startswith("Mouse")]
         g1_values = g1[mouse_columns].values.tolist()[0]
         g2_values = g2[mouse_columns].values.tolist()[0]
-        print(r1, g1_values, g2_values)
 
         t_stat, p_value = stats.ttest_ind(g1_values, g2_values)
-        p_values.append(p_value)
+        p_values.append((r1, p_value))
     return p_values
 
 def plot_p_values(rstats_path, save=False, output_folder="./ripley_results/"):
@@ -910,3 +916,139 @@ def replace_np_values(arr: np.ndarray, map: dict) -> np.ndarray:
     fn = np.vectorize(lambda x: map.get(x, 0) * 255)
     return fn(arr)
 
+# from glob import glob
+# import os
+# import numpy as np
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# 
+# def _calculate_p_values_two_tailed(observed_ripleyK, simulated_ripleyKs):
+#     """
+#     Calculate two-tailed p-values for Ripley's K function at each radius.
+# 
+#     Parameters:
+#     observed_ripleyK (array-like): An array of Ripley's K values calculated from the observed data for each radius.
+#     simulated_ripleyKs (array-like of array-like): A 2D array where each row represents the Ripley's K values 
+#                                                     from a single Monte Carlo simulation across the same radii as the observed data.
+# 
+#     Returns:
+#     np.array: An array of two-tailed p-values for each radius.
+#     """
+#     # Initialize an array to hold p-values for each radius
+#     p_values = np.zeros_like(observed_ripleyK, dtype=float)
+# 
+#     # Calculate p-value for each radius
+#     for i in range(len(observed_ripleyK)):
+#         # Count how many simulated Ripley's K values are more extreme than the observed value
+#         # For a two-tailed test, consider both tails
+#         # print((i, simulated_ripleyKs[:, i], observed_ripleyK[i]))
+#         lower_extreme_count = np.sum(simulated_ripleyKs[:, i] < observed_ripleyK[i])
+#         upper_extreme_count = np.sum(simulated_ripleyKs[:, i] >= observed_ripleyK[i])
+#         
+#         # For two-tailed, the extremeness is considered from both ends; thus, take the minimum count
+#         # and multiply by 2 to account for both tails
+#         extreme_count = min(lower_extreme_count, upper_extreme_count) * 2
+#         
+#         # Ensure the p-value does not exceed 1
+#         p_values[i] = np.minimum(extreme_count / simulated_ripleyKs.shape[0], 1.0)
+# 
+#     return p_values
+# 
+# def plot_p_values(rstats_path, save=False, output_folder="./ripley_results/"):
+#     palette = sns.color_palette("rocket_r")
+#     def get_rstats_files(path):
+#         return glob(f"{path}/*.csv")
+# 
+#     def _plot(p_values_array, radii):
+#         # p_values_df = pd.DataFrame({
+#         #     "P-Value": np.concatenate(p_values_array),  # Flatten the list of arrays into one long array
+#         #     "Set": np.repeat(np.arange(1, len(p_values_array)+1), len(p_values_array[0])),
+#         #     "Radius": np.tile(radii, len(p_values_array)),
+#         # })
+#         p_values_long_list = []
+#         for i, p_values in enumerate(p_values_array, start=1):
+#             for radius, p_value in zip(radii, p_values):
+#                 p_values_long_list.append({
+#                     "Radius": radius,
+#                     "P-Value": p_value,
+#                     "Set": f"Sample {i}"  # Label each set for identification
+#                 })
+#         p_values_df = pd.DataFrame(p_values_long_list)
+# 
+#         plt.figure(figsize=(8, 6))  # Set the figure size for better visibility
+# 
+#         # Plot using seaborn
+#         sns.lineplot(data=p_values_df, x='Radius', y='P-Value', hue="Set", style="Set", linestyle='-', zorder=3, alpha=0.3, legend="brief")
+# 
+#         # Draw a dotted horizontal line for the 0.05 threshold
+#         color = palette[4]
+#         plt.hlines(
+#               y=0.05,
+#               xmin=np.min(radii),
+#               xmax=np.max(radii),
+#               color=get_equivalent_color(color, 0.4),
+#               label='p<0.05 Threshold',
+#               linewidth=1
+#         )
+#         plt.fill_between(radii, 0, 0.05, color=get_equivalent_color(color, 0.1))
+# 
+#         # Flip the y-axis
+#         plt.gca().invert_yaxis()
+# 
+#         # Add labels and title for clarity
+#         plt.xlabel('Radius')
+#         plt.ylabel('P-Value')
+#         plt.legend()
+#         plt.show()
+#         
+#     
+# 
+#     rstats_files = get_rstats_files(rstats_path)
+#     print("Loaded:", rstats_files)
+# 
+#     # filter our monte carlo results
+#     rstats_files = [os.path.splitext(os.path.basename(f))[0] for f in rstats_files if "random" not in f]
+#     u_rstats_files = sorted([f for f in rstats_files if "univariate" in f])
+#     m_rstats_files = sorted([f for f in rstats_files if "multivariate" in f])
+# 
+#     types = ["tumor", "ng2", "branch", "tvc"]
+#     for t in types[:1]:
+#         t_files = [i for i in u_rstats_files if t in i]
+# 
+#         p_values_array = []
+#         for i, filename in enumerate(t_files):
+#             # Construct the path for the CSV file
+#             fullpath = os.path.join(rstats_path, f"{filename}.csv")
+#             prefix, _, date, id, mode, label, _ = filename.split("_")
+#             
+#             # Construct the path for the random CSV file
+#             rand_fullpath = os.path.join(rstats_path, f"FV10__{date}_{id}_random_{mode}_{label}_rstats.csv")
+#     
+#             # Load the CSV file and random CSV file into DataFrames
+#             rstats = pd.read_csv(fullpath)
+#             rand_rstats = pd.read_csv(rand_fullpath)
+# 
+#             # plot_ripley(rstats, rand_rstats)
+# 
+#             observed_ripleyK = rstats["K(r)"].to_numpy()
+# 
+#             # Determine the range of radii
+#             min_radius, max_radius = rstats["Radius (r)"].min(), rstats["Radius (r)"].max()
+#             expected_length = max_radius - min_radius + 1  # Adjust based on your radius range
+# 
+#             # Group by 'Line' and extract 'K(r)' values
+#             groups = rand_rstats.groupby('Line')['K(r)']
+# 
+#             simulated_arrays = []
+#             for name, group in groups:
+#                 # Ensure the group has the expected length; you might need to handle cases where it doesn't
+#                 assert len(group) == expected_length
+#                 simulated_arrays.append(group.values)
+#             simulated_ripleyKs = np.array(simulated_arrays)
+# 
+#             p_values = _calculate_p_values_two_tailed(observed_ripleyK, simulated_ripleyKs)
+#             p_values_array.append(p_values)
+#         _plot(p_values_array, np.arange(min_radius, max_radius+1))
+#         break
+#             
