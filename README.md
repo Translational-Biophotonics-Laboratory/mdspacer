@@ -106,6 +106,7 @@ Install dependencies
 
   Set parameters
   ```python
+  #### 3D dummy data
   # Search radii
   radii=np.arange(2, 67) 
 
@@ -116,16 +117,39 @@ Install dependencies
   n_samples = 5
   ```
 
-  Run MDSPACER K Function
+  Run MDSPACER K Function - Univariate
   ```python
-    rand_rstats = monte_carlo(points, mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
-    results = run_ripley(points, points, mask, radii, n_processes=55, boundary_correction=False)
+    rand_rstats = monte_carlo(random_set1, volume_mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
+    results = run_ripley(random_set 1, random_set1, volume_mask, radii, n_processes=55, boundary_correction=False)
+    results = run_ripley(
+        points_i=random_set1, // Numpy array containing 2D or 3D point locations
+        mode="3D", // must match the shape of numpy arrays points_i
+        mask=volume_mask, // binary mask of where to conduct the calculation
+        radii=radii, // Set the range of search radii over which to calculate K values
+        n_processes=55, // Use this to set the number of CPU cores you want to run in parallel
+        boundary_correction=False
+    )
+    rstats = pd.DataFrame(results, columns=["Radius (r)", "K(r)", "L(r)", "H(r)"])
+  ```
+
+  Run MDSPACER K Function - Bivariate
+  ```python
+    rand_rstats = monte_carlo(random_set1, random_set2, volume_mask, radii, n_samples=100, n_processes=55, boundary_correction=False)
+    results = run_ripley(
+        points_i=random_set1, // Numpy array containing 2D or 3D point locations
+        points_j=random_set2, // Set only if you are doing multivariate, must match the shape of points_i
+        mode="3D", // must match the shape of numpy arrays points_i and points_j
+        mask=volume_mask, // binary mask of where to conduct the calculation
+        radii=radii, // Set the range of search radii over which to calculate K values
+        n_processes=55, // Use this to set the number of CPU cores you want to run in parallel
+        boundary_correction=False
+    )
     rstats = pd.DataFrame(results, columns=["Radius (r)", "K(r)", "L(r)", "H(r)"])
   ```
 
   Save rstats DataFrames to CSV files for caching and plotting
   ```python
-    rand_rstats.to_csv(f"/home/dkermany/ripley_results/{filename}_random_univariate_rstats.csv")
+    rand_rstats.to_csv(f"/path/to/ripley_results/{filename}_random_univariate_rstats.csv")
     rstats.to_csv(os.path.join(output_dir, f"{filename}_univariate_rstats.csv"))
   ```
 
