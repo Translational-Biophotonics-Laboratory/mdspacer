@@ -80,7 +80,7 @@ Install dependencies
   ```
 <!-- USAGE EXAMPLES -->
 ### Usage
-  - [Link to Basic Usage tutorial](ipynb.Basic_Usage.ipynb)
+  - [Link to Basic Usage tutorial](ipynb/Basic_Usage.ipynb)
   - [Link to Ripley's K tutorial](ipynb/spacer3d.ipynb)
   - [Link to visualization tutorial](ipynb/plot_rstats.ipynb) 
 
