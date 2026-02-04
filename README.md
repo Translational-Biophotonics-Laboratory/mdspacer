@@ -76,7 +76,7 @@ Install library (virtualenv recommended)
 
 Install dependencies
   ```sh
-  pipenv install --dev
+  pipenv sync --dev
   ```
 <!-- USAGE EXAMPLES -->
 ### Usage
